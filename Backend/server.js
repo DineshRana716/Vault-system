@@ -8,31 +8,39 @@ const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const jwt_secret = process.env.jwt_secret;
+const authMiddleware = require("./middleware/authorization");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-app.post("/upload", upload.single("file"), async (req, res) => {
-  const { folder_id = null } = req.body;
-  const file = req.file;
+app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
+  try {
+    const { folder_id = null } = req.body;
+    const file = req.file;
 
-  const result = await pool.query(
-    `INSERT INTO files
-     (original_name, stored_name, path, size, mime_type, folder_id)
-     VALUES ($1,$2,$3,$4,$5,$6)
+    //userId comes from token
+    const userId = req.user.user_id;
+
+    const result = await pool.query(
+      `INSERT INTO files
+     (original_name, stored_name, path, size, mime_type, folder_id,owner_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      RETURNING *`,
-    [
-      file.originalname,
-      file.filename,
-      file.path,
-      file.size,
-      file.mimetype,
-      folder_id,
-    ],
-  );
-
-  res.json(result.rows[0]);
+      [
+        file.originalname,
+        file.filename,
+        file.path,
+        file.size,
+        file.mimetype,
+        folder_id,
+        userId,
+      ],
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: "upload failed" });
+  }
 });
 
 app.get("/files", async (req, res) => {
