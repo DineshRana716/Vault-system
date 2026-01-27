@@ -9,6 +9,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const jwt_secret = process.env.jwt_secret;
 const authMiddleware = require("./middleware/authorization");
+const getHash = require("./config/cryptohash");
 
 const app = express();
 app.use(express.json());
@@ -18,32 +19,62 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
   try {
     const { folder_id = null } = req.body;
     const file = req.file;
-
-    //userId comes from token
     const userId = req.user.user_id;
 
-    const result = await pool.query(
-      `INSERT INTO files
-     (original_name, stored_name, path, size, mime_type, folder_id,owner_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
-     RETURNING *`,
-      [
-        file.originalname,
-        file.filename,
-        file.path,
-        file.size,
-        file.mimetype,
-        folder_id,
-        userId,
-      ],
+    // 1️⃣ hash the uploaded file
+    const fileHash = await getHash(file.path);
+
+    // 2️⃣ check if file already exists
+    const existingFile = await pool.query(
+      `SELECT * FROM stored_files WHERE hash = $1`,
+      [fileHash],
     );
-    res.json(result.rows[0]);
+
+    let storedFileId;
+
+    if (existingFile.rowCount > 0) {
+      // 3️⃣ duplicate file → reuse
+      storedFileId = existingFile.rows[0].id;
+
+      await pool.query(
+        `UPDATE stored_files
+           SET ref_count = ref_count + 1
+           WHERE id = $1`,
+        [storedFileId],
+      );
+
+      // remove newly uploaded duplicate
+      fs.unlinkSync(file.path);
+    } else {
+      // 4️⃣ new file → store physically
+      const storedResult = await pool.query(
+        `INSERT INTO stored_files
+           (hash, path, size, mime_type, ref_count)
+           VALUES ($1,$2,$3,$4,1)
+           RETURNING id`,
+        [fileHash, file.path, file.size, file.mimetype],
+      );
+
+      storedFileId = storedResult.rows[0].id;
+    }
+
+    // 5️⃣ create user ↔ file mapping
+    const userFile = await pool.query(
+      `INSERT INTO user_files
+         (user_id, stored_file_id, original_name, folder_id)
+         VALUES ($1,$2,$3,$4)
+         RETURNING *`,
+      [userId, storedFileId, file.originalname, folder_id],
+    );
+
+    res.json(userFile.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "upload failed" });
   }
 });
 
-app.get("/files", async (req, res) => {
+app.get("/files", authMiddleware, async (req, res) => {
   const result = await pool.query(
     "select * from files order by created_at desc",
   );
@@ -51,7 +82,7 @@ app.get("/files", async (req, res) => {
   res.json(result.rows);
 });
 
-app.get("/files/:id", async (req, res) => {
+app.get("/files/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
   console.log("id is " + id);
   const result = await pool.query("select * from files where id=$1", [id]);
@@ -63,7 +94,7 @@ app.get("/files/:id", async (req, res) => {
   res.sendFile(path.resolve(file.path));
 });
 
-app.get("/files/:id/preview", async (req, res) => {
+app.get("/files/:id/preview", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -83,7 +114,7 @@ app.get("/files/:id/preview", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-app.delete("/files/:id", async (req, res) => {
+app.delete("/files/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query("select * from files where id=$1 ", [id]);
@@ -99,7 +130,7 @@ app.delete("/files/:id", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-app.post("/folders", async (req, res) => {
+app.post("/folders", authMiddleware, async (req, res) => {
   const { name, parent_id = null } = req.body;
 
   const result = await pool.query(
