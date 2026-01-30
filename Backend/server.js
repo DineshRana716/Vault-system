@@ -130,13 +130,41 @@ app.get("/files/:id/preview", authMiddleware, async (req, res) => {
 app.delete("/files/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("select * from files where id=$1 ", [id]);
+    const userId = req.user.user_id;
+    console.log("id and user ", id, " ", userId);
+    const result = await pool.query(
+      "select * from user_files where id=$1 and user_id=$2 ",
+      [id, userId],
+    );
     if (result.rows.length === 0) {
       return res.status(404).json("file not found");
     }
+    //console.log("file is ", JSON.stringify(result.rows[0]));
     const file = result.rows[0];
-    fs.unlinkSync(path.resolve(file.path));
-    await pool.query("delete from files where id=$1", [id]);
+    const storedId = await pool.query(
+      "select * from stored_files where id=$1",
+      [file.stored_file_id],
+    );
+    if (storedId.rows.length === 0) {
+      return res.status(404).json("file not found");
+    }
+    //fs.unlinkSync(storedId.rows[0].path);
+    await pool.query(
+      "update stored_files set ref_count=ref_count-1 where id=$1",
+      [storedId.rows[0].id],
+    );
+    const count = storedId.rows[0].ref_count;
+    console.log("count ", count);
+    if (count <= 0) {
+      fs.unlinkSync(storedId.rows[0].path);
+      await pool.query("delete from stored_files where id=$1", [
+        storedId.rows[0].id,
+      ]);
+    }
+    await pool.query("delete from user_files where id=$1 and user_id=$2", [
+      id,
+      userId,
+    ]);
     res.json({ message: "file deleted successfully" });
   } catch (err) {
     console.error(err);
