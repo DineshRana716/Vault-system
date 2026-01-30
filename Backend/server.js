@@ -75,23 +75,36 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
 });
 
 app.get("/files", authMiddleware, async (req, res) => {
-  const result = await pool.query(
-    "select * from files order by created_at desc",
-  );
+  const userId = req.user.user_id;
+  //console.log("user id is ", userId);
+  const result = await pool.query("select * from user_files where user_id=$1", [
+    userId,
+  ]);
   //console.log(result.rows);
   res.json(result.rows);
 });
 
 app.get("/files/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  console.log("id is " + id);
-  const result = await pool.query("select * from files where id=$1", [id]);
-  console.log("result is " + result.rows);
+  const userId = req.user.user_id;
+  const result = await pool.query(
+    "select * from user_files where id=$1 and user_id=$2",
+    [id, userId],
+  );
   if (result.rows.length === 0) {
     return res.status(404).json({ message: "file not found" });
   }
-  const file = result.rows[0];
-  res.sendFile(path.resolve(file.path));
+  const storedId = await pool.query("select * from stored_files where id=$1", [
+    result.rows[0].stored_file_id,
+  ]);
+  if (storedId.rows.length === 0) {
+    return res.status(404).json({ message: "file not found" });
+  }
+
+  //here we re sendong content type of the file to the frontend so it do necces operations
+  res.setHeader("Content-Type", storedId.rows[0].mime_type);
+  //opening file. We don't do path.resolve as we already store absolute path
+  res.sendFile(storedId.rows[0].path, { root: "." });
 });
 
 app.get("/files/:id/preview", authMiddleware, async (req, res) => {
