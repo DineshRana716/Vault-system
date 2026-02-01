@@ -131,7 +131,7 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.user_id;
-    console.log("id and user ", id, " ", userId);
+    //console.log("id and user ", id, " ", userId);
     const result = await pool.query(
       "select * from user_files where id=$1 and user_id=$2 ",
       [id, userId],
@@ -149,12 +149,16 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
       return res.status(404).json("file not found");
     }
     //fs.unlinkSync(storedId.rows[0].path);
-    await pool.query(
-      "update stored_files set ref_count=ref_count-1 where id=$1",
+    const result_stored = await pool.query(
+      `UPDATE stored_files
+   SET ref_count = ref_count - 1
+   WHERE id = $1
+   RETURNING ref_count, path`,
       [storedId.rows[0].id],
     );
-    const count = storedId.rows[0].ref_count;
-    console.log("count ", count);
+
+    const count = result_stored.rows[0].ref_count;
+    console.log("count", count);
     if (count <= 0) {
       fs.unlinkSync(storedId.rows[0].path);
       await pool.query("delete from stored_files where id=$1", [

@@ -44,3 +44,4 @@ res.setHeader(
 "Content-Disposition",
 `attachment; filename="${file.original_name}"`
 );
+MIME TYPES=> it tells what types of file is that like pdf,image,text,png,jpg etc
