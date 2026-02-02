@@ -1,0 +1,228 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+::-webkit-scrollbar {
+  width: 0px;
+}
+::-webkit-scrollbar-track {
+  background: #ffffff00;
+}
+::-webkit-scrollbar-thumb {
+  background: #ffffff00;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff00;
+}
+body {
+  background-color: rgb(0, 0, 0);
+}
+/* Displays */
+.primary-flex {
+  display: flex;
+}
+.flex-col {
+  flex-direction: column;
+}
+.primary-grid {
+  display: grid;
+}
+/* Alignments and Justifications */
+.align-center {
+  align-items: center;
+}
+.text-center {
+  text-align: center;
+}
+.text-left {
+  text-align: left;
+}
+.justify-center {
+  justify-content: center;
+}
+.justify-start {
+  justify-content: flex-start;
+}
+.justify-end {
+  justify-content: flex-end;
+}
+/* Widths */
+.width-content {
+  width: max-content;
+}
+.width-min {
+  width: min-content;
+}
+.width-30 {
+  width: 30%;
+}
+.width-40 {
+  width: 40%;
+}
+.width-50 {
+  width: 50%;
+}
+.width-60 {
+  width: 60%;
+}
+.width-70 {
+  width: 70%;
+}
+.width-100 {
+  width: 100%;
+}
+.width-500 {
+  width: 500px;
+}
+/* Heights */
+.height-main {
+  height: 250px;
+}
+.height-sml {
+  height: 15px;
+}
+.height-content {
+  height: max-content;
+}
+/* Paddings  */
+.padding-sml {
+  padding: 10px;
+}
+.padding-main {
+  padding: 25px 30px;
+}
+/* Margins */
+.margin-top {
+  margin-top: 40px;
+}
+.margin-top-extra {
+  margin-top: 70px;
+}
+.margin-t-sml {
+  margin-top: 10px;
+}
+.margin-left {
+  margin-left: 40px;
+}
+.margin-left-extra {
+  margin-left: 90px;
+}
+.margin-right {
+  margin-right: 20px;
+}
+.spacing-l-sml {
+  margin-left: 10px;
+}
+.spacing-r-sml {
+  margin: 0px 10px;
+}
+.margin-bottom {
+  margin-bottom: 25px;
+}
+.margin-bottom-extra {
+  margin-bottom: 50px;
+}
+/* Backgrounds */
+.bg-secondary-theme {
+  background-color: rgb(58, 58, 58);
+}
+.bg-black {
+  background-color: rgb(0, 0, 0);
+}
+.bg-white {
+  background-color: white;
+}
+.bg-test {
+  background: #8f8888;
+}
+/* Floats */
+.float-left {
+  float: left;
+}
+/* Colors */
+.whiten {
+  color: white;
+}
+.darken {
+  color: rgba(182, 180, 189, 0.2);
+}
+.darken-mix {
+  color: rgba(40, 40, 42, 0.645);
+}
+.third-font {
+  color: rgba(88, 88, 91, 0.69);
+}
+/* Fonts */
+.font-main {
+  font-size: 23px;
+}
+.font-head {
+  font-size: 94px;
+}
+.font-spacing {
+  letter-spacing: 2px;
+}
+.font-roboto {
+  font-family: "Roboto", system-ui;
+}
+.font-playfair {
+  font-family: "Playfair Display", system-ui;
+}
+.font-poppins {
+  font-family: "Poppins", serif;
+}
+/* Positions */
+.position-fixed {
+  position: fixed;
+}
+.pos-abs {
+  position: absolute;
+}
+.pos-rel {
+  position: relative;
+}
+.top {
+  top: 0%;
+}
+/* Externals  */
+.make-up {
+  z-index: 2;
+}
+.border-10 {
+  border-radius: 10px;
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+.transform-up {
+  transform: translateY(-35%);
+}
+.transform-up-max {
+  transform: translateY(-50px);
+}
+.transform-left {
+  transform: translateX(10px);
+}
+.link-img {
+  height: 100px;
+  border-radius: 10px;
+}
+.testimonials-img {
+  height: 100px;
+  width: 100px;
+}
+.right-info {
+  margin-left: 40%;
+  transform: translateY(5%);
+  height: 100vh;
+}
+.left-info {
+  transform: translateY(10%);
+  position: fixed;
+  top: 0;
+}
+/* Actives */
+.size-project:hover {
+  background-color: rgb(58, 58, 58);
+  transition: 0.8s;
+}

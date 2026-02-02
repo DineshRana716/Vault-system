@@ -2,6 +2,7 @@ import React from "react";
 import { signup } from "../Services/authApi";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import style from "./Form.module.css";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -14,34 +15,53 @@ const SignUp = () => {
     try {
       await signup({ email, password });
       navigate("/");
-    } catch (err) {}
+    } catch (err) {
+      setError(err.response?.data?.message || "Signup failed");
+    }
   };
 
   return (
     <div>
-      <div className="container">
-        <div className="wrapper">
-          <div className="title">
+      <div className={style.container}>
+        <div className={style.wrapper}>
+          <div className={style.title}>
             <span>Welcome</span>
           </div>
-          <p className="title_para">Please enter your details to sign up.</p>
+
+          <p className={style.title_para}>
+            Please enter your details to sign up.
+          </p>
 
           <form onSubmit={handlesubmit}>
-            <div className="row">
-              {/* <i className="fas fa-user"></i> */}
-              <input type="text" placeholder="Enter your email..." required />
+            <div className={style.row}>
+              <input
+                type="text"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email..."
+                required
+              />
             </div>
-            <div className="row">
-              {/* <i className="fas fa-lock"></i> */}
-              <input type="password" placeholder="Password" required />
+
+            <div className={style.row}>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                required
+              />
             </div>
-            <div className="pass">
+
+            <div className={style.pass}>
               <a href="#">Forgot password?</a>
             </div>
-            <div className="row button">
+
+            <div className={`${style.row} ${style.button}`}>
               <input type="submit" value="Login" />
             </div>
-            <div className="signup-link">
+
+            <div className={style.signupLink}>
               Already a member? <a href="#">Sign in</a>
             </div>
           </form>

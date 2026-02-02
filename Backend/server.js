@@ -13,7 +13,12 @@ const getHash = require("./config/cryptohash");
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173", // EXACT frontend URL
+    credentials: true,
+  })
+);
 
 app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
   try {
@@ -27,7 +32,7 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
     // 2️⃣ check if file already exists
     const existingFile = await pool.query(
       `SELECT * FROM stored_files WHERE hash = $1`,
-      [fileHash],
+      [fileHash]
     );
 
     let storedFileId;
@@ -40,7 +45,7 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
         `UPDATE stored_files
            SET ref_count = ref_count + 1
            WHERE id = $1`,
-        [storedFileId],
+        [storedFileId]
       );
 
       // remove newly uploaded duplicate
@@ -52,7 +57,7 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
            (hash, path, size, mime_type, ref_count)
            VALUES ($1,$2,$3,$4,1)
            RETURNING id`,
-        [fileHash, file.path, file.size, file.mimetype],
+        [fileHash, file.path, file.size, file.mimetype]
       );
 
       storedFileId = storedResult.rows[0].id;
@@ -64,7 +69,7 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
          (user_id, stored_file_id, original_name, folder_id)
          VALUES ($1,$2,$3,$4)
          RETURNING *`,
-      [userId, storedFileId, file.originalname, folder_id],
+      [userId, storedFileId, file.originalname, folder_id]
     );
 
     res.json(userFile.rows[0]);
@@ -89,7 +94,7 @@ app.get("/files/:id", authMiddleware, async (req, res) => {
   const userId = req.user.user_id;
   const result = await pool.query(
     "select * from user_files where id=$1 and user_id=$2",
-    [id, userId],
+    [id, userId]
   );
   if (result.rows.length === 0) {
     return res.status(404).json({ message: "file not found" });
@@ -134,7 +139,7 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
     //console.log("id and user ", id, " ", userId);
     const result = await pool.query(
       "select * from user_files where id=$1 and user_id=$2 ",
-      [id, userId],
+      [id, userId]
     );
     if (result.rows.length === 0) {
       return res.status(404).json("file not found");
@@ -143,7 +148,7 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
     const file = result.rows[0];
     const storedId = await pool.query(
       "select * from stored_files where id=$1",
-      [file.stored_file_id],
+      [file.stored_file_id]
     );
     if (storedId.rows.length === 0) {
       return res.status(404).json("file not found");
@@ -154,7 +159,7 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
    SET ref_count = ref_count - 1
    WHERE id = $1
    RETURNING ref_count, path`,
-      [storedId.rows[0].id],
+      [storedId.rows[0].id]
     );
 
     const count = result_stored.rows[0].ref_count;
@@ -180,7 +185,7 @@ app.post("/folders", authMiddleware, async (req, res) => {
 
   const result = await pool.query(
     "INSERT INTO folders (name, parent_id) VALUES ($1, $2) RETURNING *",
-    [name, parent_id],
+    [name, parent_id]
   );
 
   res.json(result.rows[0]);
@@ -199,7 +204,7 @@ app.post("/signup", async (req, res) => {
     // 2. Check if user already exists
     const existingUser = await pool.query(
       "SELECT id FROM users WHERE email = $1",
-      [email],
+      [email]
     );
 
     if (existingUser.rows.length > 0) {
@@ -214,7 +219,7 @@ app.post("/signup", async (req, res) => {
     // 4. Insert user
     const result = await pool.query(
       "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id",
-      [email, hashedPassword],
+      [email, hashedPassword]
     );
 
     // 5. Success response
