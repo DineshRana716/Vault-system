@@ -1,5 +1,8 @@
 import React from "react";
 import style from "./Form.module.css";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "../Services/authApi";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -17,16 +20,14 @@ const Login = () => {
     }
 
     try {
-      const res = await axios.post("http://localhost:3000/login", {
+      const res = await login({
         email,
         password,
       });
 
-      // 🔐 store token
       localStorage.setItem("token", res.data.token);
 
-      // go to protected page
-      navigate("/files");
+      navigate("/home");
     } catch (err) {
       setError(err.response?.data?.message || "Invalid credentials");
     }
@@ -42,13 +43,25 @@ const Login = () => {
           Please enter your details to sign in.
         </p>
 
-        <form>
+        <form onSubmit={handleLogin}>
           <div className={style.row}>
-            <input type="text" placeholder="Enter your email..." required />
+            <input
+              type="text"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email..."
+              required
+            />
           </div>
 
           <div className={style.row}>
-            <input type="password" placeholder="Password" required />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              required
+            />
           </div>
 
           <div className={style.pass}>
