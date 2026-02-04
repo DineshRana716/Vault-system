@@ -12,7 +12,12 @@ const Header = () => {
           Upload file
         </button>
       </div>
-      <span className={style.appName}>MYvault</span>
+      <div className={style.rightSection}>
+        <button type="button" className={style.actionBtn}>
+          Logout
+        </button>
+        <span className={style.appName}>MYvault</span>
+      </div>
     </header>
   );
 };
