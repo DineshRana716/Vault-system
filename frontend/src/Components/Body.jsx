@@ -3,7 +3,7 @@ import style from "./Body.module.css";
 import axios from "axios";
 import { useState, useEffect, useRef } from "react";
 
-const Body = () => {
+const Body = ({ refreshTrigger = 0 }) => {
   const [files, setFiles] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
@@ -25,7 +25,6 @@ const Body = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    console.log("token is ", token);
     if (!token) return;
     axios
       .get(`http://localhost:3000/files`, {
@@ -35,12 +34,11 @@ const Body = () => {
       })
       .then((res) => {
         setFiles(res.data);
-        console.log("files are ", files);
       })
       .catch((err) => {
-        console.error("Error fectching files", err);
+        console.error("Error fetching files", err);
       });
-  }, []);
+  }, [refreshTrigger]);
 
   const handleRename = (e, file) => {
     e.stopPropagation();

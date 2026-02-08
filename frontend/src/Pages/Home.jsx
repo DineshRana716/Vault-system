@@ -1,13 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import Body from "../Components/Body";
 import Header from "../Components/Header";
 import style from "./Home.module.css";
 
 const Home = () => {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   return (
     <div className={style.layout}>
-      <Header />
-      <Body />
+      <Header onUploadSuccess={() => setRefreshTrigger((t) => t + 1)} />
+      <Body refreshTrigger={refreshTrigger} />
     </div>
   );
 };

@@ -36,6 +36,19 @@
   border-color: #999;
 }
 
+.actionBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .appName {
   font-size: 1.25rem;
   font-weight: 600;
