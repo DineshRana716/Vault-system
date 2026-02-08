@@ -112,26 +112,26 @@ app.get("/files/:id", authMiddleware, async (req, res) => {
   res.sendFile(storedId.rows[0].path, { root: "." });
 });
 
-app.get("/files/:id/preview", authMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
+// app.get("/files/:id/preview", authMiddleware, async (req, res) => {
+//   try {
+//     const { id } = req.params;
 
-    const result = await pool.query("SELECT * FROM files WHERE id = $1", [id]);
+//     const result = await pool.query("SELECT * FROM files WHERE id = $1", [id]);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "File not found" });
-    }
-    const file = result.rows[0];
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ message: "File not found" });
+//     }
+//     const file = result.rows[0];
 
-    res.setHeader("Content-Type", file.mime_type);
-    res.setHeader("Content-Disposition", "inline");
+//     res.setHeader("Content-Type", file.mime_type);
+//     res.setHeader("Content-Disposition", "inline");
 
-    res.sendFile(path.resolve(file.path));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+//     res.sendFile(path.resolve(file.path));
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 app.delete("/files/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -179,6 +179,24 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
+});
+app.put("/files/:id/rename", authMiddleware, async (req, res) => {
+  const userId = req.user.user_id;
+  const { id } = req.params;
+  const { newName } = req.body;
+
+  if (!newName) {
+    return res.status(400).json({ message: "new name is required" });
+  }
+  const result = await pool.query(
+    `update user_files set original_name=$1 where id=$2 and user_id=$3 returning *`,
+    [newName, id, userId]
+  );
+  if (result.rowCount === 0) {
+    return res.status(404).json({ message: "File not found" });
+  }
+
+  res.json({ message: "Renamed successfully" });
 });
 app.post("/folders", authMiddleware, async (req, res) => {
   const { name, parent_id = null } = req.body;
