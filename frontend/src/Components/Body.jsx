@@ -79,10 +79,23 @@ const Body = () => {
     setRenamingId(null);
   };
 
-  const handleDelete = (e, file) => {
+  const handleDelete = async (e, file) => {
     e.stopPropagation();
     setOpenMenuId(null);
-    // TODO: implement delete
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${file.original_name}"?`
+    );
+    if (!confirmed) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      await axios.delete(`http://localhost:3000/files/${file.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setFiles((prev) => prev.filter((f) => f.id !== file.id));
+    } catch (err) {
+      console.error("Error deleting file", err);
+    }
   };
 
   const handleFileClick = async (id) => {
