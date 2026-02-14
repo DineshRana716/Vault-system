@@ -17,99 +17,160 @@ app.use(
   cors({
     origin: "http://localhost:5173", // EXACT frontend URL
     credentials: true,
-  })
+  }),
 );
 
 app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
   try {
-    const { folder_id = null } = req.body;
+    const parent_id = req.body.parent_id || null;
     const file = req.file;
     const userId = req.user.user_id;
 
-    // 1️⃣ hash the uploaded file
+    if (!file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // 🔒 1️⃣ Validate parent folder (if not root)
+    if (parent_id) {
+      const folderCheck = await pool.query(
+        `SELECT id FROM user_files
+           WHERE id = $1
+           AND user_id = $2
+           AND type = 'FOLDER'`,
+        [parent_id, userId],
+      );
+
+      if (folderCheck.rowCount === 0) {
+        return res.status(400).json({
+          message: "Invalid parent folder",
+        });
+      }
+    }
+
+    // 2️⃣ Hash the uploaded file
     const fileHash = await getHash(file.path);
 
-    // 2️⃣ check if file already exists
+    // 3️⃣ Check for duplicate file
     const existingFile = await pool.query(
       `SELECT * FROM stored_files WHERE hash = $1`,
-      [fileHash]
+      [fileHash],
     );
 
     let storedFileId;
 
     if (existingFile.rowCount > 0) {
-      // 3️⃣ duplicate file → reuse
+      // Duplicate → reuse
       storedFileId = existingFile.rows[0].id;
 
       await pool.query(
         `UPDATE stored_files
            SET ref_count = ref_count + 1
            WHERE id = $1`,
-        [storedFileId]
+        [storedFileId],
       );
 
       // remove newly uploaded duplicate
       fs.unlinkSync(file.path);
     } else {
-      // 4️⃣ new file → store physically
+      // New file → store physically
       const storedResult = await pool.query(
         `INSERT INTO stored_files
            (hash, path, size, mime_type, ref_count)
            VALUES ($1,$2,$3,$4,1)
            RETURNING id`,
-        [fileHash, file.path, file.size, file.mimetype]
+        [fileHash, file.path, file.size, file.mimetype],
       );
 
       storedFileId = storedResult.rows[0].id;
     }
 
-    // 5️⃣ create user ↔ file mapping
+    // 4️⃣ Insert into user_files as FILE
     const userFile = await pool.query(
       `INSERT INTO user_files
-         (user_id, stored_file_id, original_name, folder_id)
-         VALUES ($1,$2,$3,$4)
+         (user_id, stored_file_id, original_name, parent_id, type)
+         VALUES ($1,$2,$3,$4,'FILE')
          RETURNING *`,
-      [userId, storedFileId, file.originalname, folder_id]
+      [userId, storedFileId, file.originalname, parent_id],
     );
 
-    res.json(userFile.rows[0]);
+    res.status(201).json(userFile.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "upload failed" });
+    res.status(500).json({ message: "Upload failed" });
   }
 });
 
 app.get("/files", authMiddleware, async (req, res) => {
   const userId = req.user.user_id;
-  //console.log("user id is ", userId);
-  const result = await pool.query("select * from user_files where user_id=$1", [
-    userId,
-  ]);
-  //console.log(result.rows);
+  const parent_id = req.query.parent_id; // optional: filter by folder
+
+  let query = "select * from user_files where user_id = $1";
+  const params = [userId];
+
+  if (parent_id !== undefined) {
+    if (parent_id === "" || parent_id === "null") {
+      query += " and parent_id is null";
+    } else {
+      query += " and parent_id = $2";
+      params.push(parent_id);
+    }
+  }
+
+  query += " order by type desc, original_name asc"; // FOLDER before FILE, then by name
+  const result = await pool.query(query, params);
   res.json(result.rows);
 });
 
 app.get("/files/:id", authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.user_id;
-  const result = await pool.query(
-    "select * from user_files where id=$1 and user_id=$2",
-    [id, userId]
-  );
-  if (result.rows.length === 0) {
-    return res.status(404).json({ message: "file not found" });
-  }
-  const storedId = await pool.query("select * from stored_files where id=$1", [
-    result.rows[0].stored_file_id,
-  ]);
-  if (storedId.rows.length === 0) {
-    return res.status(404).json({ message: "file not found" });
-  }
+  try {
+    const { id } = req.params;
+    const userId = req.user.user_id;
 
-  //here we re sendong content type of the file to the frontend so it do necces operations
-  res.setHeader("Content-Type", storedId.rows[0].mime_type);
-  //opening file. We don't do path.resolve as we already store absolute path
-  res.sendFile(storedId.rows[0].path, { root: "." });
+    // 1️⃣ Check user owns the file
+    const result = await pool.query(
+      `SELECT * FROM user_files
+       WHERE id = $1
+       AND user_id = $2`,
+      [id, userId],
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    const row = result.rows[0];
+
+    // 2️⃣ Prevent folder download
+    if (row.type !== "FILE") {
+      return res.status(400).json({
+        message: "Cannot download a folder",
+      });
+    }
+
+    if (!row.stored_file_id) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    // 3️⃣ Get physical file
+    const storedResult = await pool.query(
+      `SELECT * FROM stored_files WHERE id = $1`,
+      [row.stored_file_id],
+    );
+
+    if (storedResult.rowCount === 0) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    const storedFile = storedResult.rows[0];
+
+    const absolutePath = path.resolve(storedFile.path);
+
+    // 4️⃣ Send file safely
+    res.download(absolutePath, row.original_name);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Download failed" });
+  }
 });
 
 // app.get("/files/:id/preview", authMiddleware, async (req, res) => {
@@ -136,45 +197,44 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.user_id;
-    //console.log("id and user ", id, " ", userId);
     const result = await pool.query(
-      "select * from user_files where id=$1 and user_id=$2 ",
-      [id, userId]
+      "select * from user_files where id=$1 and user_id=$2",
+      [id, userId],
     );
     if (result.rows.length === 0) {
-      return res.status(404).json("file not found");
+      return res.status(404).json({ message: "file not found" });
     }
-    //console.log("file is ", JSON.stringify(result.rows[0]));
-    const file = result.rows[0];
-    const storedId = await pool.query(
-      "select * from stored_files where id=$1",
-      [file.stored_file_id]
-    );
-    if (storedId.rows.length === 0) {
-      return res.status(404).json("file not found");
-    }
-    //fs.unlinkSync(storedId.rows[0].path);
-    const result_stored = await pool.query(
-      `UPDATE stored_files
-   SET ref_count = ref_count - 1
-   WHERE id = $1
-   RETURNING ref_count, path`,
-      [storedId.rows[0].id]
-    );
 
-    const count = result_stored.rows[0].ref_count;
-    console.log("count", count);
-    if (count <= 0) {
-      fs.unlinkSync(storedId.rows[0].path);
-      await pool.query("delete from stored_files where id=$1", [
-        storedId.rows[0].id,
-      ]);
+    const row = result.rows[0];
+
+    if (row.type === "FILE" && row.stored_file_id) {
+      const storedId = await pool.query(
+        "select * from stored_files where id=$1",
+        [row.stored_file_id],
+      );
+      if (storedId.rows.length > 0) {
+        const result_stored = await pool.query(
+          `UPDATE stored_files
+           SET ref_count = ref_count - 1
+           WHERE id = $1
+           RETURNING ref_count, path`,
+          [storedId.rows[0].id],
+        );
+        const count = result_stored.rows[0].ref_count;
+        if (count <= 0) {
+          fs.unlinkSync(storedId.rows[0].path);
+          await pool.query("delete from stored_files where id=$1", [
+            storedId.rows[0].id,
+          ]);
+        }
+      }
     }
+
     await pool.query("delete from user_files where id=$1 and user_id=$2", [
       id,
       userId,
     ]);
-    res.json({ message: "file deleted successfully" });
+    res.json({ message: "Deleted successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -190,7 +250,7 @@ app.put("/files/:id/rename", authMiddleware, async (req, res) => {
   }
   const result = await pool.query(
     `update user_files set original_name=$1 where id=$2 and user_id=$3 returning *`,
-    [newName, id, userId]
+    [newName, id, userId],
   );
   if (result.rowCount === 0) {
     return res.status(404).json({ message: "File not found" });
@@ -198,61 +258,109 @@ app.put("/files/:id/rename", authMiddleware, async (req, res) => {
 
   res.json({ message: "Renamed successfully" });
 });
-app.post("/folders", authMiddleware, async (req, res) => {
-  const { name, parent_id = null } = req.body;
+app.post("/folder", authMiddleware, async (req, res) => {
+  try {
+    const { name, parent_id } = req.body;
+    const userId = req.user.user_id;
 
-  const result = await pool.query(
-    "INSERT INTO folders (name, parent_id) VALUES ($1, $2) RETURNING *",
-    [name, parent_id]
-  );
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ message: "Folder name is required" });
+    }
 
-  res.json(result.rows[0]);
+    const parentId = parent_id || null;
+
+    if (parentId) {
+      const folderCheck = await pool.query(
+        `SELECT id FROM user_files
+         WHERE id = $1 AND user_id = $2 AND type = 'FOLDER'`,
+        [parentId, userId],
+      );
+      if (folderCheck.rowCount === 0) {
+        return res.status(400).json({ message: "Invalid parent folder" });
+      }
+    }
+
+    const result = await pool.query(
+      `INSERT INTO user_files 
+       (id, user_id, original_name, type, parent_id)
+       VALUES (gen_random_uuid(), $1, $2, 'FOLDER', $3)
+       RETURNING *`,
+      [userId, name.trim(), parentId],
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error creating folder" });
+  }
 });
+
 app.post("/signup", async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const { email, password } = req.body;
 
-    // 1. Basic validation
     if (!email || !password) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
 
-    // 2. Check if user already exists
-    const existingUser = await pool.query(
+    await client.query("BEGIN");
+
+    // Check if user exists
+    const existingUser = await client.query(
       "SELECT id FROM users WHERE email = $1",
-      [email]
+      [email],
     );
 
     if (existingUser.rows.length > 0) {
+      await client.query("ROLLBACK");
       return res.status(409).json({
         message: "User already exists",
       });
     }
 
-    // 3. Hash password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Insert user
-    const result = await pool.query(
+    // Insert user
+    const userResult = await client.query(
       "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id",
-      [email, hashedPassword]
+      [email, hashedPassword],
     );
 
-    // 5. Success response
+    const userId = userResult.rows[0].id;
+
+    // 🔥 Create default folders (root level)
+    await client.query(
+      `INSERT INTO user_files 
+       (id, user_id, original_name, type, parent_id)
+       VALUES 
+       (gen_random_uuid(), $1, 'Documents', 'FOLDER', NULL),
+       (gen_random_uuid(), $1, 'Images', 'FOLDER', NULL)`,
+      [userId],
+    );
+
+    await client.query("COMMIT");
+
     res.status(201).json({
       message: "User created successfully",
-      user_id: result.rows[0].id,
+      user_id: userId,
     });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error(err);
 
     res.status(500).json({
       message: "Internal server error",
     });
+  } finally {
+    client.release();
   }
 });
+
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
