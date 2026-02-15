@@ -1,8 +1,15 @@
 import React from "react";
 import style from "./Body.module.css";
-import axios from "axios";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  getFiles,
+  getFileMeta,
+  getDownloadUrl,
+  getFileBlob,
+  deleteFile,
+  renameFile,
+} from "../Services/filesApi";
 
 const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
   const navigate = useNavigate();
@@ -29,14 +36,7 @@ const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    const url =
-      currentFolderId == null
-        ? "http://localhost:3000/files?parent_id="
-        : `http://localhost:3000/files?parent_id=${encodeURIComponent(currentFolderId)}`;
-    axios
-      .get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+    getFiles(token, currentFolderId)
       .then((res) => setFiles(res.data))
       .catch((err) => console.error("Error fetching files", err));
   }, [refreshTrigger, currentFolderId]);
@@ -48,10 +48,7 @@ const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
     }
     const token = localStorage.getItem("token");
     if (!token) return;
-    axios
-      .get(`http://localhost:3000/files/${currentFolderId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+    getFileMeta(token, currentFolderId)
       .then((res) => {
         if (res.data?.type === "FOLDER") setFolderInfo(res.data);
         else setFolderInfo(null);
@@ -76,18 +73,15 @@ const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
       return;
     }
     try {
-      await axios.put(
-        `http://localhost:3000/files/${renamingId}/rename`,
-        { newName: name },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await renameFile(token, renamingId, name);
       setFiles((prev) =>
         prev.map((f) =>
           f.id === renamingId ? { ...f, original_name: name } : f,
         ),
       );
     } catch (err) {
-      console.error("Error renaming file", err);
+      const msg = err.response?.data?.message || "Failed to rename";
+      alert(msg);
     }
     setRenamingId(null);
   };
@@ -106,12 +100,11 @@ const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      await axios.delete(`http://localhost:3000/files/${file.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await deleteFile(token, file.id);
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
     } catch (err) {
-      console.error("Error deleting file", err);
+      const msg = err.response?.data?.message || "Failed to delete";
+      alert(msg);
     }
   };
 
@@ -125,13 +118,15 @@ const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
   };
 
   const handleFileOpen = async (id) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      const response = await axios.get(`http://localhost:3000/files/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: "blob",
-      });
+      const { data } = await getDownloadUrl(token, id);
+      if (data.url) {
+        window.open(data.url, "_blank");
+        return;
+      }
+      const response = await getFileBlob(token, id);
       const blob = new Blob([response.data], {
         type: response.headers["content-type"],
       });

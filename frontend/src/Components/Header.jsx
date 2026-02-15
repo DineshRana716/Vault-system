@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import style from "./Header.module.css";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { uploadFile, createFolder } from "../Services/filesApi";
 
 const Header = ({
   currentFolderId = null,
@@ -29,15 +29,7 @@ const Header = ({
     if (!token) return;
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      if (currentFolderId) formData.append("parent_id", currentFolderId);
-      await axios.post("http://localhost:3000/upload", formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      await uploadFile(token, file, currentFolderId);
       onUploadSuccess?.();
     } catch (err) {
       console.error("Upload failed", err);
@@ -54,11 +46,7 @@ const Header = ({
     if (!name?.trim()) return;
     setCreatingFolder(true);
     try {
-      await axios.post(
-        "http://localhost:3000/folder",
-        { name: name.trim(), parent_id: currentFolderId },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await createFolder(token, name, currentFolderId);
       onFolderCreated?.();
     } catch (err) {
       console.error("Create folder failed", err);

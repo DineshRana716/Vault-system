@@ -10,6 +10,16 @@ const jwt = require("jsonwebtoken");
 const jwt_secret = process.env.jwt_secret;
 const authMiddleware = require("./middleware/authorization");
 const getHash = require("./config/cryptohash");
+const {
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { s3 } = require("./config/s3");
+
+const AWS_BUCKET = process.env.AWS_BUCKET_NAME;
+const S3_PREFIX = "files";
 
 const app = express();
 app.use(express.json());
@@ -72,13 +82,27 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
       // remove newly uploaded duplicate
       fs.unlinkSync(file.path);
     } else {
-      // New file → store physically
+      // New file → upload to S3 and store metadata
+      const s3Key = `${S3_PREFIX}/${fileHash}`;
+      const fileBuffer = fs.readFileSync(file.path);
+
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: AWS_BUCKET,
+          Key: s3Key,
+          Body: fileBuffer,
+          ContentType: file.mimetype,
+        }),
+      );
+
+      fs.unlinkSync(file.path);
+
       const storedResult = await pool.query(
         `INSERT INTO stored_files
-           (hash, path, size, mime_type, ref_count)
-           VALUES ($1,$2,$3,$4,1)
+           (hash,size, mime_type, ref_count, s3_key)
+           VALUES ($1, $2, $3, 1, $4)
            RETURNING id`,
-        [fileHash, file.path, file.size, file.mimetype],
+        [fileHash, file.size, file.mimetype, s3Key],
       );
 
       storedFileId = storedResult.rows[0].id;
@@ -166,13 +190,68 @@ app.get("/files/:id", authMiddleware, async (req, res) => {
 
     const storedFile = storedResult.rows[0];
 
-    const absolutePath = path.resolve(storedFile.path);
-
-    // 4️⃣ Send file safely
-    res.download(absolutePath, row.original_name);
+    // 4️⃣ Send file from S3 (signed URL)
+    if (!storedFile.s3_key) {
+      return res.status(404).json({ message: "File not found" });
+    }
+    const getCommand = new GetObjectCommand({
+      Bucket: AWS_BUCKET,
+      Key: storedFile.s3_key,
+      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(row.original_name)}"`,
+    });
+    const downloadUrl = await getSignedUrl(s3, getCommand, {
+      expiresIn: 3600,
+    });
+    return res.redirect(downloadUrl);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Download failed" });
+  }
+});
+
+// Returns a signed download URL for S3 files, or { url: null } for local files (frontend can use GET /files/:id with blob).
+app.get("/files/:id/download-url", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.user_id;
+
+    const result = await pool.query(
+      `SELECT * FROM user_files WHERE id = $1 AND user_id = $2`,
+      [id, userId],
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "File not found" });
+    }
+    const row = result.rows[0];
+    if (row.type !== "FILE" || !row.stored_file_id) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    const storedResult = await pool.query(
+      `SELECT * FROM stored_files WHERE id = $1`,
+      [row.stored_file_id],
+    );
+    if (storedResult.rowCount === 0) {
+      return res.status(404).json({ message: "File not found" });
+    }
+    const storedFile = storedResult.rows[0];
+
+    if (storedFile.s3_key) {
+      const getCommand = new GetObjectCommand({
+        Bucket: AWS_BUCKET,
+        Key: storedFile.s3_key,
+        ResponseContentDisposition: `attachment; filename="${encodeURIComponent(row.original_name)}"`,
+      });
+      const downloadUrl = await getSignedUrl(s3, getCommand, {
+        expiresIn: 3600,
+      });
+      return res.json({ url: downloadUrl });
+    }
+
+    res.json({ url: null });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to get download URL" });
   }
 });
 
@@ -220,12 +299,24 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
           `UPDATE stored_files
            SET ref_count = ref_count - 1
            WHERE id = $1
-           RETURNING ref_count, path`,
+           RETURNING ref_count, s3_key`,
           [storedId.rows[0].id],
         );
-        const count = result_stored.rows[0].ref_count;
+        const updated = result_stored.rows[0];
+        const count = updated.ref_count;
         if (count <= 0) {
-          fs.unlinkSync(storedId.rows[0].path);
+          if (updated.s3_key) {
+            try {
+              await s3.send(
+                new DeleteObjectCommand({
+                  Bucket: AWS_BUCKET,
+                  Key: updated.s3_key,
+                }),
+              );
+            } catch (s3Err) {
+              console.error("S3 delete error (continuing):", s3Err.message);
+            }
+          }
           await pool.query("delete from stored_files where id=$1", [
             storedId.rows[0].id,
           ]);
@@ -244,22 +335,27 @@ app.delete("/files/:id", authMiddleware, async (req, res) => {
   }
 });
 app.put("/files/:id/rename", authMiddleware, async (req, res) => {
-  const userId = req.user.user_id;
-  const { id } = req.params;
-  const { newName } = req.body;
+  try {
+    const userId = req.user.user_id;
+    const { id } = req.params;
+    const rawName = req.body.newName;
+    const newName = typeof rawName === "string" ? rawName.trim() : "";
 
-  if (!newName) {
-    return res.status(400).json({ message: "new name is required" });
+    if (!newName) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+    const result = await pool.query(
+      `UPDATE user_files SET original_name = $1 WHERE id = $2 AND user_id = $3 RETURNING *`,
+      [newName, id, userId],
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "File not found" });
+    }
+    res.json({ message: "Renamed successfully", file: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Rename failed" });
   }
-  const result = await pool.query(
-    `update user_files set original_name=$1 where id=$2 and user_id=$3 returning *`,
-    [newName, id, userId],
-  );
-  if (result.rowCount === 0) {
-    return res.status(404).json({ message: "File not found" });
-  }
-
-  res.json({ message: "Renamed successfully" });
 });
 app.post("/folder", authMiddleware, async (req, res) => {
   try {
@@ -388,6 +484,33 @@ app.post("/login", async (req, res) => {
     res.json({ message: "token sent successfully", token });
   } catch (err) {
     return res.status(500).json({ message: "internal server error" });
+  }
+});
+app.post("/generate-upload-url", async (req, res) => {
+  try {
+    const { fileName, fileType } = req.body;
+
+    if (!fileName || !fileType) {
+      return res.status(400).json({ message: "Missing file data" });
+    }
+
+    const key = `test/${Date.now()}-${fileName}`;
+    // console.log("bucket name " + process.env.AWS_BUCKET_NAME);
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+      ContentType: fileType,
+    });
+
+    const uploadUrl = await getSignedUrl(s3, command, {
+      expiresIn: 60, // 60 seconds
+    });
+
+    res.json({ uploadUrl, key });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to generate URL" });
   }
 });
 
