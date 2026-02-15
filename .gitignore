@@ -1,0 +1,11 @@
+# Environment and secrets – never commit
+.env
+*.env
+Backend/.env
+
+# Dependencies
+node_modules/
+Backend/node_modules/
+
+# Uploads (if you prefer not to track)
+Backend/uploads/
