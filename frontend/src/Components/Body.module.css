@@ -21,12 +21,22 @@
   border: 1px solid #e5e5e5;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .fileItem:hover {
   background: #f9f9f9;
   border-color: #ccc;
+}
+
+.fileItemFolder .fileName {
+  font-weight: 500;
+}
+
+.folderIcon {
+  margin-right: 0.35rem;
 }
 
 .fileName {
@@ -71,7 +81,9 @@
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .menuBtn:hover {
@@ -113,4 +125,61 @@
 .emptyMessage {
   color: #666;
   font-size: 0.95rem;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.breadcrumbBack {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #333;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.breadcrumbBack:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.breadcrumbPath {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.breadcrumbLink {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: inherit;
+  color: #0066cc;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  color: #999;
+}
+
+.breadcrumbCurrent {
+  color: #333;
+  font-weight: 500;
 }

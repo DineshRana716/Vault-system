@@ -20,6 +20,14 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/home/folder/:folderId"
+        element={
+          <ProtectedRoute>
+            <Home />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

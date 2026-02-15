@@ -3,10 +3,15 @@ import style from "./Header.module.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const Header = ({ onUploadSuccess }) => {
+const Header = ({
+  currentFolderId = null,
+  onUploadSuccess,
+  onFolderCreated,
+}) => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -26,6 +31,7 @@ const Header = ({ onUploadSuccess }) => {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (currentFolderId) formData.append("parent_id", currentFolderId);
       await axios.post("http://localhost:3000/upload", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -38,6 +44,27 @@ const Header = ({ onUploadSuccess }) => {
     } finally {
       setUploading(false);
       e.target.value = "";
+    }
+  };
+
+  const handleNewFolder = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    const name = window.prompt("Folder name");
+    if (!name?.trim()) return;
+    setCreatingFolder(true);
+    try {
+      await axios.post(
+        "http://localhost:3000/folder",
+        { name: name.trim(), parent_id: currentFolderId },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      onFolderCreated?.();
+    } catch (err) {
+      console.error("Create folder failed", err);
+      alert(err.response?.data?.message || "Failed to create folder");
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
@@ -60,6 +87,14 @@ const Header = ({ onUploadSuccess }) => {
           disabled={uploading}
         >
           {uploading ? "Uploading…" : "Upload file"}
+        </button>
+        <button
+          type="button"
+          className={style.actionBtn}
+          onClick={handleNewFolder}
+          disabled={creatingFolder}
+        >
+          {creatingFolder ? "Creating…" : "New folder"}
         </button>
       </div>
       <div className={style.rightSection}>

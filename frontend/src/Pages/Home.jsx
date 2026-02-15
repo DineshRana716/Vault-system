@@ -1,15 +1,22 @@
 import React, { useState } from "react";
+import { useParams } from "react-router-dom";
 import Body from "../Components/Body";
 import Header from "../Components/Header";
 import style from "./Home.module.css";
 
 const Home = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { folderId } = useParams();
+  const currentFolderId = folderId || null;
 
   return (
     <div className={style.layout}>
-      <Header onUploadSuccess={() => setRefreshTrigger((t) => t + 1)} />
-      <Body refreshTrigger={refreshTrigger} />
+      <Header
+        currentFolderId={currentFolderId}
+        onUploadSuccess={() => setRefreshTrigger((t) => t + 1)}
+        onFolderCreated={() => setRefreshTrigger((t) => t + 1)}
+      />
+      <Body refreshTrigger={refreshTrigger} currentFolderId={currentFolderId} />
     </div>
   );
 };

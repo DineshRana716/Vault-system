@@ -140,10 +140,13 @@ app.get("/files/:id", authMiddleware, async (req, res) => {
 
     const row = result.rows[0];
 
-    // 2️⃣ Prevent folder download
+    // 2️⃣ Folder: return metadata only (for breadcrumb/navigation)
     if (row.type !== "FILE") {
-      return res.status(400).json({
-        message: "Cannot download a folder",
+      return res.json({
+        id: row.id,
+        original_name: row.original_name,
+        parent_id: row.parent_id,
+        type: row.type,
       });
     }
 
