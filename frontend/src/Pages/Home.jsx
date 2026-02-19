@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Body from "../Components/Body";
 import Header from "../Components/Header";
@@ -7,6 +8,8 @@ import Sidebar from "../Components/Sidebar";
 
 const Home = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const { folderId } = useParams();
   const currentFolderId = folderId || null;
 
@@ -18,10 +21,12 @@ const Home = () => {
           currentFolderId={currentFolderId}
           onUploadSuccess={() => setRefreshTrigger((t) => t + 1)}
           onFolderCreated={() => setRefreshTrigger((t) => t + 1)}
+          onSearch={setSearchQuery}
         />
         <Body
           refreshTrigger={refreshTrigger}
           currentFolderId={currentFolderId}
+          searchQuery={searchQuery}
         />
       </div>
     </div>

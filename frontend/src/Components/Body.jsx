@@ -13,7 +13,11 @@ import {
   renameFile,
 } from "../Services/filesApi";
 
-const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
+const Body = ({
+  refreshTrigger = 0,
+  currentFolderId = null,
+  searchQuery = "",
+}) => {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [folderInfo, setFolderInfo] = useState(null);
@@ -38,10 +42,11 @@ const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    getFiles(token, currentFolderId)
+
+    getFiles(token, currentFolderId, searchQuery)
       .then((res) => setFiles(res.data))
       .catch((err) => console.error("Error fetching files", err));
-  }, [refreshTrigger, currentFolderId]);
+  }, [refreshTrigger, currentFolderId, searchQuery]);
 
   useEffect(() => {
     if (!currentFolderId) {

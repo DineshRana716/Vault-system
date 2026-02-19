@@ -12,6 +12,7 @@ const Header = ({
   currentFolderId = null,
   onUploadSuccess,
   onFolderCreated,
+  onSearch,
 }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -98,7 +99,7 @@ const Header = ({
         </div>
 
         <div className={style.centerSection}>
-          <Searchbar />
+          <Searchbar onSearch={onSearch} />
         </div>
 
         <div className={style.rightSection}>

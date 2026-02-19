@@ -6,12 +6,22 @@ const authHeaders = (token) => ({
   Authorization: `Bearer ${token}`,
 });
 
-export const getFiles = (token, parentId = null) => {
-  const url =
-    parentId == null
-      ? `${BASE}/files?parent_id=`
-      : `${BASE}/files?parent_id=${encodeURIComponent(parentId)}`;
-  return axios.get(url, { headers: authHeaders(token) });
+export const getFiles = (token, parentId = null, searchQuery = "") => {
+  const params = new URLSearchParams();
+
+  if (searchQuery) {
+    params.append("search", searchQuery);
+  } else {
+    if (parentId == null) {
+      params.append("parent_id", "");
+    } else {
+      params.append("parent_id", parentId);
+    }
+  }
+
+  return axios.get(`${BASE}/files?${params.toString()}`, {
+    headers: authHeaders(token),
+  });
 };
 
 export const getFileMeta = (token, id) => {

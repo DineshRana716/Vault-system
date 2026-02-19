@@ -127,12 +127,17 @@ app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
 
 app.get("/files", authMiddleware, async (req, res) => {
   const userId = req.user.user_id;
-  const parent_id = req.query.parent_id; // optional: filter by folder
+  const parent_id = req.query.parent_id;
+  const search = req.query.search;
 
   let query = "select * from user_files where user_id = $1";
   const params = [userId];
 
-  if (parent_id !== undefined) {
+  //  If search exists → ignore parent_id and search globally
+  if (search && search.trim() !== "") {
+    query += " and original_name ILIKE $2";
+    params.push(`%${search}%`);
+  } else if (parent_id !== undefined) {
     if (parent_id === "" || parent_id === "null") {
       query += " and parent_id is null";
     } else {
@@ -141,7 +146,8 @@ app.get("/files", authMiddleware, async (req, res) => {
     }
   }
 
-  query += " order by type desc, original_name asc"; // FOLDER before FILE, then by name
+  query += " order by type desc, original_name asc";
+
   const result = await pool.query(query, params);
   res.json(result.rows);
 });
