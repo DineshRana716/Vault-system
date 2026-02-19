@@ -1,29 +1,52 @@
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap");
+
 .bodySection {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 2rem 3rem;
-  background: #f2efef;
+  background: white;
+  border-radius: 2rem;
+  font-family: "Work Sans", sans-serif;
 }
 
 .fileList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0 rem;
 }
 
 .fileItem {
   display: flex;
   align-items: center;
+  position: relative;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  background: #fff;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  background: white; /* removed white bg */
+  border: none; /* removed border */
+  border-bottom: 1px solid #eaeaea; /* thin separator */
+  border-radius: 0; /* remove rounded look */
+  border-radius: 0;
   cursor: pointer;
   transition:
     background 0.2s,
     border-color 0.2s;
+}
+
+.fileItemCenter {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: #818281;
+  background: white;
+}
+.icon {
+  display: flex;
+  align-items: center;
+  background: white;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .fileItem:hover {
@@ -31,8 +54,13 @@
   border-color: #ccc;
 }
 
-.fileItemFolder .fileName {
+.fileName {
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: #333;
 }
 
 .folderIcon {
@@ -42,6 +70,7 @@
 .fileName {
   font-size: 0.95rem;
   color: #333;
+  background: white;
 }
 
 .renameInput {
@@ -50,7 +79,7 @@
   padding: 0;
   border: none;
   outline: none;
-  background: transparent;
+  background: white;
   font-size: 0.95rem;
   font-family: inherit;
   color: #0066cc;
@@ -76,7 +105,7 @@
   padding: 0;
   border: none;
   border-radius: 6px;
-  background: transparent;
+  background: white;
   color: #555;
   font-size: 1.25rem;
   line-height: 1;

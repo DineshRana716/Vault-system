@@ -1,7 +1,7 @@
 import React from "react";
 import style from "./Form.module.css";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { login } from "../Services/authApi";
 
 const Login = () => {
@@ -73,7 +73,7 @@ const Login = () => {
           </div>
 
           <div className={style.signupLink}>
-            Not a member? <a href="#">Signup now</a>
+            Not a member? <Link to="/Signup">Signup now</Link>
           </div>
         </form>
       </div>

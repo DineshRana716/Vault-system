@@ -2,6 +2,11 @@ import React, { useRef, useState } from "react";
 import style from "./Header.module.css";
 import { useNavigate } from "react-router-dom";
 import { uploadFile, createFolder } from "../Services/filesApi";
+import CreateFolderModal from "./CreateFolderModal";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import Searchbar from "./Searchbar";
 
 const Header = ({
   currentFolderId = null,
@@ -10,8 +15,10 @@ const Header = ({
 }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+
   const [uploading, setUploading] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -25,8 +32,10 @@ const Header = ({
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const token = localStorage.getItem("token");
     if (!token) return;
+
     setUploading(true);
     try {
       await uploadFile(token, file, currentFolderId);
@@ -39,15 +48,15 @@ const Header = ({
     }
   };
 
-  const handleNewFolder = async () => {
+  const handleCreateFolder = async (name) => {
     const token = localStorage.getItem("token");
-    if (!token) return;
-    const name = window.prompt("Folder name");
-    if (!name?.trim()) return;
+    if (!token || !name.trim()) return;
+
     setCreatingFolder(true);
     try {
       await createFolder(token, name, currentFolderId);
       onFolderCreated?.();
+      setShowModal(false);
     } catch (err) {
       console.error("Create folder failed", err);
       alert(err.response?.data?.message || "Failed to create folder");
@@ -57,45 +66,60 @@ const Header = ({
   };
 
   return (
-    <header className={style.header}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        className={style.hiddenInput}
-        onChange={handleFileChange}
-        accept=".pdf,.png,.jpg,.jpeg,.txt"
-        aria-hidden="true"
-        tabIndex={-1}
-      />
-      <div className={style.leftSection}>
-        <button
-          type="button"
-          className={style.actionBtn}
-          onClick={handleUploadClick}
-          disabled={uploading}
-        >
-          {uploading ? "Uploading…" : "Upload file"}
-        </button>
-        <button
-          type="button"
-          className={style.actionBtn}
-          onClick={handleNewFolder}
-          disabled={creatingFolder}
-        >
-          {creatingFolder ? "Creating…" : "New folder"}
-        </button>
-      </div>
-      <div className={style.rightSection}>
-        <button
-          type="button"
-          className={style.actionBtn}
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
-        <span className={style.appName}>MYvault</span>
-      </div>
-    </header>
+    <>
+      <header className={style.header}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className={style.hiddenInput}
+          onChange={handleFileChange}
+          accept=".pdf,.png,.jpg,.jpeg,.txt"
+        />
+
+        <div className={style.leftSection}>
+          <button
+            type="button"
+            className={style.actionBtn}
+            onClick={handleUploadClick}
+            disabled={uploading}
+          >
+            <UploadFileOutlinedIcon className={style.btnIcon} />
+            {uploading ? "Uploading…" : "Upload file"}
+          </button>
+
+          <button
+            type="button"
+            className={style.actionBtn}
+            onClick={() => setShowModal(true)}
+          >
+            <AddOutlinedIcon className={style.btnIcon} />
+            New folder
+          </button>
+        </div>
+
+        <div className={style.centerSection}>
+          <Searchbar />
+        </div>
+
+        <div className={style.rightSection}>
+          <button
+            type="button"
+            className={style.actionBtn}
+            onClick={handleLogout}
+          >
+            <LogoutOutlinedIcon />
+          </button>
+        </div>
+      </header>
+
+      {showModal && (
+        <CreateFolderModal
+          loading={creatingFolder}
+          onClose={() => setShowModal(false)}
+          onCreate={handleCreateFolder}
+        />
+      )}
+    </>
   );
 };
 

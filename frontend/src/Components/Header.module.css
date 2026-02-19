@@ -1,11 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap");
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   padding: 1rem 3rem;
-  background: #fff;
-  border-bottom: 1px solid #e5e5e5;
-  min-height: 56px;
+  background: #f9fafe;
+  height: 100px;
 }
 
 .leftSection {
@@ -14,6 +16,11 @@
   gap: 1.25rem;
 }
 
+.centerSection {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
 .rightSection {
   display: flex;
   align-items: center;
@@ -21,14 +28,28 @@
 }
 
 .actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
   padding: 0.5rem 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: none;
+  border-radius: 12px;
   background: #fff;
   font-size: 0.9rem;
   cursor: pointer;
-  color: #333;
-  transition: background 0.2s, border-color 0.2s;
+  color: #1f1f1f;
+
+  box-shadow:
+    0 1px 2px rgba(60, 64, 67, 0.15),
+    0 1px 3px rgba(60, 64, 67, 0.1);
+
+  font-family: "Work Sans", sans-serif;
+  font-optical-sizing: auto;
+
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .actionBtn:hover {

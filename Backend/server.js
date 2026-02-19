@@ -32,6 +32,7 @@ app.use(
 
 app.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
   try {
+    //console.log("hello upload ");
     const parent_id = req.body.parent_id || null;
     const file = req.file;
     const userId = req.user.user_id;
@@ -481,6 +482,7 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign({ user_id: user.id }, jwt_secret, {
       expiresIn: "1h",
     });
+    //console.log("user details is ", JSON.stringify(user));
     res.json({ message: "token sent successfully", token });
   } catch (err) {
     return res.status(500).json({ message: "internal server error" });

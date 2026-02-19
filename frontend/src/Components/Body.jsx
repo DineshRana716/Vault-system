@@ -1,4 +1,6 @@
 import React from "react";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import style from "./Body.module.css";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -205,15 +207,20 @@ const Body = ({ refreshTrigger = 0, currentFolderId = null }) => {
               ) : (
                 <>
                   <span className={style.fileName}>
-                    {file.type === "FOLDER" && (
+                    {file.type === "FOLDER" ? (
                       <span className={style.folderIcon} aria-hidden>
-                        📁{" "}
+                        <FolderOutlinedIcon className={style.icon} />
+                      </span>
+                    ) : (
+                      <span className={style.fileIcon} aria-hidden>
+                        <InsertDriveFileOutlinedIcon className={style.icon} />
                       </span>
                     )}
                     {file.original_name}
                   </span>
                 </>
               )}
+              <div className={style.fileItemCenter}>{file.created_at}</div>
               <div
                 className={style.fileItemRight}
                 onClick={(e) => e.stopPropagation()}

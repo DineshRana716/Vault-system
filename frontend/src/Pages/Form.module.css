@@ -95,6 +95,12 @@ form .row input::placeholder {
   justify-content: center;
 }
 
+.wrapper form .error {
+  color: #c0392b;
+  font-size: 14px;
+  margin: -8px 0 12px 0;
+}
+
 .wrapper form .pass {
   margin: 4px 4px 23px 4px;
 }

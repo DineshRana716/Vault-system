@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import Body from "../Components/Body";
 import Header from "../Components/Header";
 import style from "./Home.module.css";
+import Sidebar from "../Components/Sidebar";
 
 const Home = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -10,13 +11,19 @@ const Home = () => {
   const currentFolderId = folderId || null;
 
   return (
-    <div className={style.layout}>
-      <Header
-        currentFolderId={currentFolderId}
-        onUploadSuccess={() => setRefreshTrigger((t) => t + 1)}
-        onFolderCreated={() => setRefreshTrigger((t) => t + 1)}
-      />
-      <Body refreshTrigger={refreshTrigger} currentFolderId={currentFolderId} />
+    <div className={style.container}>
+      <Sidebar />
+      <div className={style.layout}>
+        <Header
+          currentFolderId={currentFolderId}
+          onUploadSuccess={() => setRefreshTrigger((t) => t + 1)}
+          onFolderCreated={() => setRefreshTrigger((t) => t + 1)}
+        />
+        <Body
+          refreshTrigger={refreshTrigger}
+          currentFolderId={currentFolderId}
+        />
+      </div>
     </div>
   );
 };
